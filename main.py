@@ -90,7 +90,7 @@ class GUI:
     # ---------- FUNCTIONS ---------------------------------------------
     def browse_file(self):
         self.file_path = filedialog.askopenfilename()
-        self.textbox.delete("1.0", self.tk.END)
+        self.textbox.delete("1.0", tk.END)
         self.textbox.insert("1.0", self.file_path) 
 
     def connect(self):
