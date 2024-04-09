@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import filedialog
+from backend.functions import open_stream_cannelloni, open_stream_plotjuggler
 
 class GUI:
     def __init__(self):
@@ -7,7 +8,6 @@ class GUI:
         self.app = tk.Tk()
 
     # ---------- WINDOW SETTINGS ---------------------------------------
-        # Optionally, you can set properties of the application window
         self.app.title("SCanner Adapter")
 
         # Set the width and height of the window
@@ -23,78 +23,85 @@ class GUI:
         self.app.iconbitmap('img/icon.ico')
 
     # ---------- GUI ELEMENTS --------------------------------------------
-        # Add widgets (e.g., labels, buttons) to the application window
         self.label = tk.Label(self.app, text="Hello, this is the SCanner Adapter! \nYou have to enter all the required values on the form below \n and than press connect!")
         self.label.pack(pady=10)
 
-        # IP SCanner
-        self.label = tk.Label(self.app, text="IP SCanner:")
-        self.label.pack()
-        self.default_ip_scanner = "127.192.0.1"                       # TO DO: Change this to the default IP address of the scanner
-        self.textbox = tk.Text(self.app, height=1, width=30)
-        self.textbox.insert("1.0", self.default_ip_scanner) 
-        self.textbox.pack()
+        # IP Scanner
+        self.label_ip_scanner = tk.Label(self.app, text="IP Scanner:")
+        self.label_ip_scanner.pack()
+        self.textbox_ip_scanner = tk.Text(self.app, height=1, width=30)
+        self.textbox_ip_scanner.insert("1.0", "127.192.0.1")                # Default IP address
+        self.textbox_ip_scanner.pack()
 
         # CAN0 Port
-        self.label = tk.Label(self.app, text="CAN0 port:")
-        self.label.pack()
-        self.default_ip_scanner = "1000"                             # TO DO: Change this to the default CAN0 port
-        self.textbox = tk.Text(self.app, height=1, width=30)
-        self.textbox.insert("1.0", self.default_ip_scanner) 
-        self.textbox.pack()
+        self.label_can0_port = tk.Label(self.app, text="CAN0 port:")
+        self.label_can0_port.pack()
+        self.textbox_can0_port = tk.Text(self.app, height=1, width=30)
+        self.textbox_can0_port.insert("1.0", "1000")                        # Default CAN0 port
+        self.textbox_can0_port.pack()
 
         # CAN1 Port
-        self.label = tk.Label(self.app, text="CAN1 port:")
-        self.label.pack()
-        self.default_ip_scanner = "2000"                             # TO DO: Change this to the default CAN1 port
-        self.textbox = tk.Text(self.app, height=1, width=30)
-        self.textbox.insert("1.0", self.default_ip_scanner) 
-        self.textbox.pack()
-
-        self.textbox.pack(pady=(0, 10))
+        self.label_can1_port = tk.Label(self.app, text="CAN1 port:")
+        self.label_can1_port.pack()
+        self.textbox_can1_port = tk.Text(self.app, height=1, width=30)
+        self.textbox_can1_port.insert("1.0", "2000")                        # Default CAN1 port
+        self.textbox_can1_port.pack()
 
         # Local port JSON relay
-        self.label = tk.Label(self.app, text="Local port JSON relay:")
-        self.label.pack()
-        self.default_ip_scanner = "3000"                             # TO DO: Change this to the default Local port JSON relay
-        self.textbox = tk.Text(self.app, height=1, width=30)
-        self.textbox.insert("1.0", self.default_ip_scanner) 
-        self.textbox.pack()
-
-        self.textbox.pack(pady=(0, 10))
+        self.label_local_port = tk.Label(self.app, text="Local port JSON relay:")
+        self.label_local_port.pack()
+        self.textbox_local_port = tk.Text(self.app, height=1, width=30)
+        self.textbox_local_port.insert("1.0", "9870")                       # Default local port
+        self.textbox_local_port.pack()
 
         # Path dbc CAN0
-        self.label = tk.Label(self.app, text="Select path to CAN0 DBC:")
-        self.label.pack()
-        self.textbox = tk.Text(self.app, height=1, width=50)
-        self.textbox.pack()
-        self.browse_button = tk.Button(self.app, text="Browse", command=self.browse_file)
-        self.browse_button.pack()
+        self.label_path_dbc_can0 = tk.Label(self.app, text="Select path to CAN0 DBC:")
+        self.label_path_dbc_can0.pack()
+        self.textbox_path_dbc_can0 = tk.Text(self.app, height=1, width=50)
+        self.textbox_path_dbc_can0.pack()
+        self.browse_button_can0 = tk.Button(self.app, text="Browse", command=self.browse_file_can0)
+        self.browse_button_can0.pack()
 
         # Path dbc CAN1
-        self.label = tk.Label(self.app, text="Select path to CAN1 DBC:")
-        self.label.pack()
-        self.textbox = tk.Text(self.app, height=1, width=50)
-        self.textbox.pack()
-        self.browse_button = tk.Button(self.app, text="Browse", command=self.browse_file)
-        self.browse_button.pack()
-
+        self.label_path_dbc_can1 = tk.Label(self.app, text="Select path to CAN1 DBC:")
+        self.label_path_dbc_can1.pack()
+        self.textbox_path_dbc_can1 = tk.Text(self.app, height=1, width=50)
+        self.textbox_path_dbc_can1.pack()
+        self.browse_button_can1 = tk.Button(self.app, text="Browse", command=self.browse_file_can1)
+        self.browse_button_can1.pack()
 
         # Connect button
-        self.button = tk.Button(self.app, text="Connect", command=self.connect, font=("Arial", 14, "bold"), width=15, height=2)
-        self.button.pack(pady=30)
+        self.connect_button = tk.Button(self.app, text="Connect", command=self.connect, font=("Arial", 14, "bold"), width=15, height=2)
+        self.connect_button.pack(pady=30)
 
         # Start the Tkinter event loop
         self.app.mainloop()
 
     # ---------- FUNCTIONS ---------------------------------------------
-    def browse_file(self):
-        self.file_path = filedialog.askopenfilename()
-        self.textbox.delete("1.0", tk.END)
-        self.textbox.insert("1.0", self.file_path) 
+    def browse_file_can0(self):
+        self.file_path_can0 = filedialog.askopenfilename()
+        self.textbox_path_dbc_can0.delete("1.0", tk.END)
+        self.textbox_path_dbc_can0.insert("1.0", self.file_path_can0)
+
+    def browse_file_can1(self):
+        self.file_path_can1 = filedialog.askopenfilename()
+        self.textbox_path_dbc_can1.delete("1.0", tk.END)
+        self.textbox_path_dbc_can1.insert("1.0", self.file_path_can1)
 
     def connect(self):
-        # TO DO: Add your connect functionality here
+        # Get the content of each textbox widget
+        ip_scanner = self.textbox_ip_scanner.get("1.0", "end-1c")
+        can0_port = self.textbox_can0_port.get("1.0", "end-1c")
+        can1_port = self.textbox_can1_port.get("1.0", "end-1c")
+        local_port = self.textbox_local_port.get("1.0", "end-1c")
+        path_dbc_can0 = self.textbox_path_dbc_can0.get("1.0", "end-1c")
+        path_dbc_can1 = self.textbox_path_dbc_can1.get("1.0", "end-1c")
+
+        # TO DO: Add connect functionality
+        #open_stream_cannelloni(ip_scanner, int(can0_port), int(can1_port))
+        open_stream_plotjuggler(int(local_port))
+
+        print("Connecting...")
         pass
 
 GUI()
