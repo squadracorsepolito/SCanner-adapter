@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog
 from backend.functions import open_stream_cannelloni, open_stream_plotjuggler
+import threading
 
 class GUI:
     def __init__(self):
@@ -27,10 +28,10 @@ class GUI:
         self.label.pack(pady=10)
 
         # IP Scanner
-        self.label_ip_scanner = tk.Label(self.app, text="IP Scanner:")
+        self.label_ip_scanner = tk.Label(self.app, text="IP SCanner:")
         self.label_ip_scanner.pack()
         self.textbox_ip_scanner = tk.Text(self.app, height=1, width=30)
-        self.textbox_ip_scanner.insert("1.0", "127.192.0.1")                # Default IP address
+        self.textbox_ip_scanner.insert("1.0", "127.0.0.1")                # Default IP address
         self.textbox_ip_scanner.pack()
 
         # CAN0 Port
@@ -48,7 +49,7 @@ class GUI:
         self.textbox_can1_port.pack()
 
         # Local port JSON relay
-        self.label_local_port = tk.Label(self.app, text="Local port JSON relay:")
+        self.label_local_port = tk.Label(self.app, text="Local port JSON relay (PlotJuggler):")
         self.label_local_port.pack()
         self.textbox_local_port = tk.Text(self.app, height=1, width=30)
         self.textbox_local_port.insert("1.0", "9870")                       # Default local port
@@ -71,7 +72,7 @@ class GUI:
         self.browse_button_can1.pack()
 
         # Connect button
-        self.connect_button = tk.Button(self.app, text="Connect", command=self.connect, font=("Arial", 14, "bold"), width=15, height=2)
+        self.connect_button = tk.Button(self.app, text="Connect", command=self.connect_thread, font=("Arial", 14, "bold"), width=15, height=2)
         self.connect_button.pack(pady=30)
 
         # Start the Tkinter event loop
@@ -88,6 +89,10 @@ class GUI:
         self.textbox_path_dbc_can1.delete("1.0", tk.END)
         self.textbox_path_dbc_can1.insert("1.0", self.file_path_can1)
 
+    def connect_thread(self):
+        # Start a new thread for the connect function
+        threading.Thread(target=self.connect, daemon=True).start()
+
     def connect(self):
         # Get the content of each textbox widget
         ip_scanner = self.textbox_ip_scanner.get("1.0", "end-1c")
@@ -100,8 +105,5 @@ class GUI:
         # TO DO: Add connect functionality
         #open_stream_cannelloni(ip_scanner, int(can0_port), int(can1_port))
         open_stream_plotjuggler(int(local_port))
-
-        print("Connecting...")
-        pass
 
 GUI()

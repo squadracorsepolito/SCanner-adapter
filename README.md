@@ -5,7 +5,17 @@ Cannelloni UDP to JSON stream translator
 ![General schema](img/general-schema.png)
 
 ## How to use
+### Install dependencies
+```bash
+pip install -r requirements.txt
+```
+
 ...
+
+### Build executable
+```bash
+pyinstaller --name SCannerAdapter  main.py --onefile --windowed
+```
 
 ## Tech stack
 - Python 3.12.2
