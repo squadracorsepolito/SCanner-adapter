@@ -3,7 +3,7 @@ name: Build MacOs Executable
 on:
   push:
     branches:
-      - master
+      - todo
 
 jobs:
   build:
