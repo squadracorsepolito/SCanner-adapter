@@ -1,0 +1,39 @@
+name: Build Executables
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Build Windows Executable
+        if: runner.os == 'Windows'
+        run: |
+          docker run --rm -v ${PWD}:/workspace -w /workspace quay.io/pypa/manylinux2014_x86_64 bash -c "pyinstaller --name SCannerAdapter --onefile main.py"
+
+      - name: Build macOS Executable
+        if: runner.os == 'macOS'
+        run: |
+          pyinstaller --name SCannerAdapter --onefile main.py
+
+      - name: Build Linux Executable
+        if: runner.os == 'Linux'
+        run: |
+          pyinstaller --name SCannerAdapter --onefile main.py
+
+      - name: Archive Artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: executables
+          path: dist/

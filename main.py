@@ -31,7 +31,7 @@ class GUI:
         self.label_ip_scanner = tk.Label(self.app, text="IP SCanner:")
         self.label_ip_scanner.pack()
         self.textbox_ip_scanner = tk.Text(self.app, height=1, width=30)
-        self.textbox_ip_scanner.insert("1.0", "127.0.0.1")                # Default IP address
+        self.textbox_ip_scanner.insert("1.0", "8.8.8.8")                # Default IP address
         self.textbox_ip_scanner.pack()
 
         # CAN0 Port

@@ -59,42 +59,35 @@ def open_stream_plotjuggler(port):
     try:
         # Create a UDP socket
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        
+
         # Bind the socket to the port
-        server_socket.bind(("localhost", port))
+        # server_socket.bind((LOCALHOST_IP, port))
 
         print(f"JSON streaming server for PlotJuggler is listening on port {port}")
 
-        # Function to handle PlotJuggler connections
-        def handle_client(client_address):
+        def handle_client():
             try:
                 while True:
                     # Generate JSON data (replace with your actual data)
                     example_json_data = {'Engine_Speed': 0, 'Inlet_Manifold_Pressure': 97.6, 'Inlet_Air_Temperature': 32, 'Throttle_Position': 17.3}
-                    print(f"Sending JSON data to {client_address}: {example_json_data}")
+                    print(f"Sending JSON data to port {port}: {example_json_data}")
                     
                     # Convert JSON data to string
                     json_str = json.dumps(example_json_data)
 
                     # Send JSON data to the client
-                    server_socket.sendto(json_str.encode(), client_address)
+                    server_socket.sendto(json_str.encode(), ("0.0.0.0", port))   # Check with cmd:  nc -ul 9870
 
                     time.sleep(1)
             except Exception as e:
                 print(f"Error handling client connection: {e}")
 
-        # Accept incoming connections and handle them in a separate thread
-        print("Waiting for connections...")
-        while True:
-            data, client_address = server_socket.recvfrom(1024)
-            print(f"Accepted connection from {client_address}")
-            client_thread = threading.Thread(target=handle_client, daemon=True, args=(client_address,))
-            client_thread.start()
+        # Start the thread to handle PlotJuggler connections
+        stream_plotjuggler_thread = threading.Thread(target=handle_client, daemon=True)
+        stream_plotjuggler_thread.start()
 
     except Exception as e:
         print(f"Error opening JSON streaming server: {e}")
-    finally:
-        server_socket.close()
 
 # Cannelloni CAN stream to JSON converter
 def cannelloni_to_json(message_cannelloni, dbc_path):
