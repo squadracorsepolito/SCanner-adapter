@@ -4,17 +4,23 @@ import socket
 import threading
 import json
 import time
+import subprocess
 
 # Constants
 LOCALHOST_IP = "127.0.0.1"
 
 # Opens a stream from the specified scanner IP and ports
 def open_stream_cannelloni(scanner_ip, port1, port2):
-    # NON VA BENE PERCHè LO STREAM DEVE ESSERE APERTO CON CANNELLONI (?)
     try:
-        # Create IPv4 TCP/IP sockets for both scanners
-        scanner_socket1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        scanner_socket2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # Create IPv4 UDP sockets for both scanners
+        scanner_socket1 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        scanner_socket2 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+        # OPPURE USANDO CANNELLONI? DEVE ESSERE INSTALLATO A PARTE NEL SISTEMA, COME PRENDO I DATI DAL SOCKET?
+        command1 = ['cannelloni', '-I', 'vcan1', '-R', scanner_ip, '-r', port1, '-l', port1]            # ???
+        command2 = ['cannelloni', '-I', 'vcan2', '-R', scanner_ip, '-r', port2, '-l', port2]
+        result1 = subprocess.run(command1, capture_output=True, text=True)
+        result2 = subprocess.run(command2, capture_output=True, text=True)
         
         # Connect to the CAN0 and CAN1
         scanner_socket1.connect((scanner_ip, port1))
@@ -33,26 +39,16 @@ def open_stream_cannelloni(scanner_ip, port1, port2):
                 merged_cannelloni_stream.append(data.decode())  # Example: Append the received data
         
         # Create threads to handle each scanner's stream
-        thread1 = threading.Thread(target=handle_scanner, args=(scanner_socket1,))
-        thread2 = threading.Thread(target=handle_scanner, args=(scanner_socket2,))
+        thread1 = threading.Thread(target=handle_scanner, daemon=True, args=(scanner_socket1,))
+        thread2 = threading.Thread(target=handle_scanner, daemon=True, args=(scanner_socket2,))
         
-        # Start the threads
         thread1.start()
         thread2.start()
         
-        # Wait for threads to finish
-        thread1.join()
-        thread2.join()
-        
-        # Return the merged data
         return merged_cannelloni_stream
         
     except Exception as e:
         print(f"Error opening stream from SCanner board: {e}")
-    finally:
-        # Close sockets
-        scanner_socket1.close()
-        scanner_socket2.close()
     
 # Opens a JSON streaming server for PlotJuggler on the specified port
 def open_stream_plotjuggler(port):
