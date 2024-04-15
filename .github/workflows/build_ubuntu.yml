@@ -1,4 +1,4 @@
-name: Build Executables
+name: Build Linux Executable
 
 on:
   push:
@@ -17,18 +17,7 @@ jobs:
         run: |
           pip install -r requirements.txt
 
-      - name: Build Windows Executable
-        if: runner.os == 'Windows'
-        run: |
-          docker run --rm -v ${PWD}:/workspace -w /workspace quay.io/pypa/manylinux2014_x86_64 bash -c "pyinstaller --name SCannerAdapter --onefile main.py"
-
-      - name: Build macOS Executable
-        if: runner.os == 'macOS'
-        run: |
-          pyinstaller --name SCannerAdapter --onefile main.py
-
       - name: Build Linux Executable
-        if: runner.os == 'Linux'
         run: |
           pyinstaller --name SCannerAdapter --onefile main.py
 
