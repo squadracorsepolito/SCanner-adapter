@@ -76,7 +76,7 @@ def open_stream_plotjuggler(port):
                     json_str = json.dumps(example_json_data)
 
                     # Send JSON data to the client
-                    server_socket.sendto(json_str.encode(), ("0.0.0.0", port))   # Check with cmd:  nc -ul 9870
+                    server_socket.sendto(json_str.encode(), (LOCALHOST_IP, port))   # Check with cmd:  nc -ul 9870
 
                     time.sleep(1)
             except Exception as e:
