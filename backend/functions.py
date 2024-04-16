@@ -5,6 +5,7 @@ import threading
 import json
 import time
 import subprocess
+import ctypes
 
 # Constants
 LOCALHOST_IP = "127.0.0.1"
@@ -12,40 +13,11 @@ LOCALHOST_IP = "127.0.0.1"
 # Opens a stream from the specified scanner IP and ports
 def open_stream_cannelloni(scanner_ip, port1, port2):
     try:
-        # Create IPv4 UDP sockets for both scanners
-        scanner_socket1 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        scanner_socket2 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        cannelloni = ctypes.CDLL("cannelloni_ports/main_cannelloni.so")  
+        # To recompile the library use (inside the cannelloni folder): gcc -shared -o cannelloni.so -fPIC main_cannelloni.c
 
-        # OPPURE USANDO CANNELLONI? DEVE ESSERE INSTALLATO A PARTE NEL SISTEMA, COME PRENDO I DATI DAL SOCKET?
-        command1 = ['cannelloni', '-I', 'vcan1', '-R', scanner_ip, '-r', port1, '-l', port1]            # ???
-        command2 = ['cannelloni', '-I', 'vcan2', '-R', scanner_ip, '-r', port2, '-l', port2]
-        result1 = subprocess.run(command1, capture_output=True, text=True)
-        result2 = subprocess.run(command2, capture_output=True, text=True)
-        
-        # Connect to the CAN0 and CAN1
-        scanner_socket1.connect((scanner_ip, port1))
-        scanner_socket2.connect((scanner_ip, port2))
-        
-        # List to store merged data from both streams
-        merged_cannelloni_stream = []
-        
-        # Function to handle data from each scanner and merge into the list
-        def handle_scanner(scanner_socket):
-            while True:
-                data = scanner_socket.recv(1024)
-                if not data:
-                    break
-                # Process the received data or merge it into the single stream
-                merged_cannelloni_stream.append(data.decode())  # Example: Append the received data
-        
-        # Create threads to handle each scanner's stream
-        thread1 = threading.Thread(target=handle_scanner, daemon=True, args=(scanner_socket1,))
-        thread2 = threading.Thread(target=handle_scanner, daemon=True, args=(scanner_socket2,))
-        
-        thread1.start()
-        thread2.start()
-        
-        return merged_cannelloni_stream
+        cannelloni.init()
+        cannelloni.open_stream(scanner_ip.encode(), int(port1), int(port2))
         
     except Exception as e:
         print(f"Error opening stream from SCanner board: {e}")
@@ -87,9 +59,75 @@ def open_stream_plotjuggler(port):
 
 # Cannelloni CAN stream to JSON converter
 def cannelloni_to_json(message_cannelloni, dbc_path):
+    # Load DBC file
     dbc = cantools.db.load_file(dbc_path)
-    message_decoded = dbc.decode_message(message_cannelloni.arbitration_id, message_cannelloni.data)
     
-    # TO DO 
+    # Initialize empty JSON object
+    json_data = {}
+    
+    # Parse header of the frame
+    version = message_cannelloni[0]
+    op_code = message_cannelloni[1]
+    seq_no = message_cannelloni[2]
+    count = (message_cannelloni[3] << 8) | message_cannelloni[4]
+    
+    # Iterate over CAN frames in the data section
+    offset = 5  # Start of data section
+    for _ in range(count):
+        # Parse CAN frame
+        can_id = (message_cannelloni[offset] << 24) | (message_cannelloni[offset + 1] << 16) | \
+                 (message_cannelloni[offset + 2] << 8) | message_cannelloni[offset + 3]
+        length = message_cannelloni[offset + 4]
+        flags = message_cannelloni[offset + 5] if length & 0x80 else None
+        data_start = offset + 6 if length & 0x80 else offset + 5
+        
+        # Extract data bytes
+        data = message_cannelloni[data_start:data_start + length]
+        
+        # Decode CAN frame using DBC file
+        frame_decoded = dbc.decode_message(can_id, data)
+        
+        # Add decoded CAN frame to JSON object
+        json_data[str(can_id)] = frame_decoded
+        
+        # Update offset for the next CAN frame
+        offset = data_start + length
+        
+    return json.dumps(json_data, indent=4)
 
-    return json
+
+# CANNELLONI DATA FORMAT
+# ## Data Frames
+# Each data frame can contain several CAN frames.
+# The header of a data frame contains the following
+# information:
+
+# | Bytes |  Name   |   Description       |
+# |-------|---------|---------------------|
+# |   1   | Version | Protocol Version    |
+# |   1   | OP Code | Type of Frame (DATA)|
+# |   1   | Seq No  | Sequence number     |
+# |   2   | Count   | Number of CAN Frames|
+
+# After the header, the data section follows.
+# Each CAN frame has the following format which
+# is similar to `canfd_frame` defined in `<linux/can.h>`.
+
+# | Bytes |  Name   |   Description       |
+# |-------|---------|---------------------|
+# |   4   |  can_id |  see `<linux/can.h>`|
+# |   1   |  len    |  size of payload/dlc|
+# |   1   |  flags^ |  CAN FD flags       |
+# |0-8/64 |  data   |  Data section       |
+
+# ^ = CAN FD only
+# Everything is Big-Endian/Network Byte Order.
+# *The frame format is identical for UDP and SCTP*
+
+# ## CAN FD
+# CAN FD frames are marked with the MSB of `len` being
+# set, so `len | (0x80)`. If this bit is set, the `flags`
+# attribute is inserted between `len` and `data`.
+# For CAN 2.0 frames this attribute is missing.
+# `data` can be 0-8 Bytes long for CAN 2.0 and 0-64 Bytes
+# for CAN FD frames.
