@@ -4,9 +4,14 @@ from backend.functions import open_stream_cannelloni, open_stream_plotjuggler
 import threading
 
 class GUI:
+    PATH_DBC_CAN0 = None
+    PATH_DBC_CAN1 = None
+    connected = False
+
     def __init__(self):
         # Create a new instance of Tkinter application
         self.app = tk.Tk()
+        self.startup()
 
     # ---------- WINDOW SETTINGS ---------------------------------------
         self.app.title("SCanner Adapter")
@@ -15,7 +20,7 @@ class GUI:
         self.screen_width = self.app.winfo_screenwidth()
         self.screen_height = self.app.winfo_screenheight()
         self.window_width = 500
-        self.window_height = 500
+        self.window_height = 520
         self.x_coordinate = (self.screen_width - self.window_width) // 2
         self.y_coordinate = (self.screen_height - self.window_height) // 2
 
@@ -60,6 +65,7 @@ class GUI:
         self.label_path_dbc_can0.pack()
         self.textbox_path_dbc_can0 = tk.Text(self.app, height=1, width=50)
         self.textbox_path_dbc_can0.pack()
+        self.textbox_path_dbc_can0.insert("1.0", self.PATH_DBC_CAN0)
         self.browse_button_can0 = tk.Button(self.app, text="Browse", command=self.browse_file_can0)
         self.browse_button_can0.pack()
 
@@ -68,12 +74,17 @@ class GUI:
         self.label_path_dbc_can1.pack()
         self.textbox_path_dbc_can1 = tk.Text(self.app, height=1, width=50)
         self.textbox_path_dbc_can1.pack()
+        self.textbox_path_dbc_can1.insert("1.0", self.PATH_DBC_CAN1)
         self.browse_button_can1 = tk.Button(self.app, text="Browse", command=self.browse_file_can1)
         self.browse_button_can1.pack()
 
         # Connect button
         self.connect_button = tk.Button(self.app, text="Connect", command=self.connect_thread, font=("Arial", 14, "bold"), width=15, height=2)
-        self.connect_button.pack(pady=30)
+        self.connect_button.pack(pady=20)
+
+        # Connected status
+        self.label_connected = tk.Label(self.app, text="CONNECTED!", font=("Arial", 14, "bold"))
+        self.label_connected.forget()
 
         # Start the Tkinter event loop
         self.app.mainloop()
@@ -84,10 +95,16 @@ class GUI:
         self.textbox_path_dbc_can0.delete("1.0", tk.END)
         self.textbox_path_dbc_can0.insert("1.0", self.file_path_can0)
 
+        global PATH_DBC_CAN0
+        self.PATH_DBC_CAN0 = self.file_path_can0
+
     def browse_file_can1(self):
         self.file_path_can1 = filedialog.askopenfilename()
         self.textbox_path_dbc_can1.delete("1.0", tk.END)
         self.textbox_path_dbc_can1.insert("1.0", self.file_path_can1)
+
+        global PATH_DBC_CAN1
+        self.PATH_DBC_CAN1 = self.file_path_can1
 
     def connect_thread(self):
         # Start a new thread for the connect function
@@ -101,9 +118,30 @@ class GUI:
         local_port = self.textbox_local_port.get("1.0", "end-1c")
         path_dbc_can0 = self.textbox_path_dbc_can0.get("1.0", "end-1c")
         path_dbc_can1 = self.textbox_path_dbc_can1.get("1.0", "end-1c")
+        self.save_to_env_file() # Save the paths to the ENV file for future reuse
 
         # TO DO: Add connect functionality
         #open_stream_cannelloni(ip_scanner, int(can0_port), int(can1_port))
         open_stream_plotjuggler(int(local_port))
+
+        self.label_connected.pack()
+
+    def startup(self):
+        # Fetch the old DBC path config from the config file
+        with open('ENV.txt', 'r') as f:
+            lines = f.readlines()
+            if lines:
+                for line in lines:
+                    if line.startswith('PATH_DBC_CAN0='):
+                        self.PATH_DBC_CAN0 = line.split('=')[1].strip()
+                    elif line.startswith('PATH_DBC_CAN1='):
+                        self.PATH_DBC_CAN1 = line.split('=')[1].strip()
+    
+    def save_to_env_file(self):
+        with open('ENV.txt', 'w') as f:
+            if self.PATH_DBC_CAN0:
+                f.write(f"PATH_DBC_CAN0={self.PATH_DBC_CAN0}\n")
+            if self.PATH_DBC_CAN1:
+                f.write(f"PATH_DBC_CAN1={self.PATH_DBC_CAN1}\n")
 
 GUI()
