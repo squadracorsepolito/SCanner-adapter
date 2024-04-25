@@ -4,14 +4,21 @@ from backend.functions import open_stream_cannelloni, open_stream_plotjuggler
 import threading
 
 class GUI:
-    PATH_DBC_CAN0 = None
-    PATH_DBC_CAN1 = None
+    # Config parameters with default values
+    PATH_DBC_CAN0 = "Path"
+    PATH_DBC_CAN1 = "Path"
+    PATH_CONFIG_MODEL = "Path"
+    IP_SCANNER = "8.8.8.8"
+    CAN0_PORT = 4000
+    CAN1_PORT = 5000
+    UDP_PORT = 9870
+
+    # Flag
     connected = False
 
     def __init__(self):
         # Create a new instance of Tkinter application
         self.app = tk.Tk()
-        self.startup()
 
     # ---------- WINDOW SETTINGS ---------------------------------------
         self.app.title("SCanner Adapter")
@@ -20,7 +27,7 @@ class GUI:
         self.screen_width = self.app.winfo_screenwidth()
         self.screen_height = self.app.winfo_screenheight()
         self.window_width = 500
-        self.window_height = 520
+        self.window_height = 580
         self.x_coordinate = (self.screen_width - self.window_width) // 2
         self.y_coordinate = (self.screen_height - self.window_height) // 2
 
@@ -32,32 +39,41 @@ class GUI:
         self.label = tk.Label(self.app, text="Hello, this is the SCanner Adapter! \nYou have to enter all the required values on the form below \n and than press connect!")
         self.label.pack(pady=10)
 
+        # Path to CONFIG
+        self.label_path_config_model = tk.Label(self.app, text="Select path to CONFIG model to use:")
+        self.label_path_config_model.pack()
+        self.textbox_path_config_model = tk.Text(self.app, height=1, width=50)
+        self.textbox_path_config_model.pack()
+        self.textbox_path_config_model.insert("1.0", self.PATH_CONFIG_MODEL)
+        self.browse_button_config_model = tk.Button(self.app, text="Browse", command=self.browse_file_config_model)
+        self.browse_button_config_model.pack()
+
         # IP Scanner
         self.label_ip_scanner = tk.Label(self.app, text="IP SCanner:")
         self.label_ip_scanner.pack()
         self.textbox_ip_scanner = tk.Text(self.app, height=1, width=30)
-        self.textbox_ip_scanner.insert("1.0", "8.8.8.8")                # Default IP address
+        self.textbox_ip_scanner.insert("1.0", self.IP_SCANNER)                # Default IP address
         self.textbox_ip_scanner.pack()
 
         # CAN0 Port
         self.label_can0_port = tk.Label(self.app, text="CAN0 port:")
         self.label_can0_port.pack()
         self.textbox_can0_port = tk.Text(self.app, height=1, width=30)
-        self.textbox_can0_port.insert("1.0", "1000")                        # Default CAN0 port
+        self.textbox_can0_port.insert("1.0", self.CAN0_PORT)                        # Default CAN0 port
         self.textbox_can0_port.pack()
 
         # CAN1 Port
         self.label_can1_port = tk.Label(self.app, text="CAN1 port:")
         self.label_can1_port.pack()
         self.textbox_can1_port = tk.Text(self.app, height=1, width=30)
-        self.textbox_can1_port.insert("1.0", "2000")                        # Default CAN1 port
+        self.textbox_can1_port.insert("1.0", self.CAN1_PORT)                        # Default CAN1 port
         self.textbox_can1_port.pack()
 
         # Local port JSON relay
-        self.label_local_port = tk.Label(self.app, text="Local port JSON relay (PlotJuggler):")
+        self.label_local_port = tk.Label(self.app, text="Local port JSON UDP server (for PlotJuggler):")
         self.label_local_port.pack()
         self.textbox_local_port = tk.Text(self.app, height=1, width=30)
-        self.textbox_local_port.insert("1.0", "9870")                       # Default local port
+        self.textbox_local_port.insert("1.0", self.UDP_PORT)                       # Default local port
         self.textbox_local_port.pack()
 
         # Path dbc CAN0
@@ -90,6 +106,15 @@ class GUI:
         self.app.mainloop()
 
     # ---------- FUNCTIONS ---------------------------------------------
+    def browse_file_config_model(self):
+        global PATH_CONFIG_MODEL
+
+        self.PATH_CONFIG_MODEL = filedialog.askopenfilename()
+        self.textbox_path_config_model.delete("1.0", tk.END)
+        self.textbox_path_config_model.insert("1.0", self.PATH_CONFIG_MODEL)
+
+        self.startup()
+
     def browse_file_can0(self):
         self.file_path_can0 = filedialog.askopenfilename()
         self.textbox_path_dbc_can0.delete("1.0", tk.END)
@@ -118,7 +143,7 @@ class GUI:
         local_port = self.textbox_local_port.get("1.0", "end-1c")
         path_dbc_can0 = self.textbox_path_dbc_can0.get("1.0", "end-1c")
         path_dbc_can1 = self.textbox_path_dbc_can1.get("1.0", "end-1c")
-        self.save_to_env_file() # Save the paths to the ENV file for future reuse
+        self.save_to_config_file() # Save the paths to the CONFIG file for future reuse
 
         # TO DO: Add connect functionality
         #open_stream_cannelloni(ip_scanner, int(can0_port), int(can1_port))
@@ -127,21 +152,59 @@ class GUI:
         self.label_connected.pack()
 
     def startup(self):
-        # Fetch the old DBC path config from the config file
-        with open('ENV.txt', 'r') as f:
+        config = {   # TODO Default values if not found into the CONFIG file
+            'PATH_DBC_CAN0': '',
+            'PATH_DBC_CAN1': '',
+            'IP_SCANNER': '',  
+            'CAN0_PORT': '',
+            'CAN1_PORT': '',
+            'UDP_PORT': '' 
+        }
+        
+        with open(self.PATH_CONFIG_MODEL, 'r') as f:
             lines = f.readlines()
             if lines:
                 for line in lines:
-                    if line.startswith('PATH_DBC_CAN0='):
-                        self.PATH_DBC_CAN0 = line.split('=')[1].strip()
-                    elif line.startswith('PATH_DBC_CAN1='):
-                        self.PATH_DBC_CAN1 = line.split('=')[1].strip()
+                    for key in config.keys():
+                        if line.startswith(f'{key}='):
+                            config[key] = line.split('=')[1].strip()
+        
+        self.PATH_DBC_CAN0 = config['PATH_DBC_CAN0']
+        self.PATH_DBC_CAN1 = config['PATH_DBC_CAN1']
+        self.IP_SCANNER = config['IP_SCANNER']
+        self.CAN0_PORT = config['CAN0_PORT']
+        self.CAN1_PORT = config['CAN1_PORT']
+        self.UDP_PORT = config['UDP_PORT']
+
+        # Update the interface with new values
+        self.update_interface()
+
+    def update_interface(self):
+        self.textbox_ip_scanner.delete("1.0", tk.END)
+        self.textbox_ip_scanner.insert("1.0", self.IP_SCANNER)
+
+        self.textbox_can0_port.delete("1.0", tk.END)
+        self.textbox_can0_port.insert("1.0", self.CAN0_PORT)
+
+        self.textbox_can1_port.delete("1.0", tk.END)
+        self.textbox_can1_port.insert("1.0", self.CAN1_PORT)
+
+        self.textbox_local_port.delete("1.0", tk.END)
+        self.textbox_local_port.insert("1.0", self.UDP_PORT)
+
+        self.textbox_path_dbc_can0.delete("1.0", tk.END)
+        self.textbox_path_dbc_can0.insert("1.0", self.PATH_DBC_CAN0)
+
+        self.textbox_path_dbc_can1.delete("1.0", tk.END)
+        self.textbox_path_dbc_can1.insert("1.0", self.PATH_DBC_CAN1)
     
-    def save_to_env_file(self):
-        with open('ENV.txt', 'w') as f:
-            if self.PATH_DBC_CAN0:
-                f.write(f"PATH_DBC_CAN0={self.PATH_DBC_CAN0}\n")
-            if self.PATH_DBC_CAN1:
-                f.write(f"PATH_DBC_CAN1={self.PATH_DBC_CAN1}\n")
+    def save_to_config_file(self):
+        with open(self.PATH_CONFIG_MODEL, 'w') as f:
+            f.write(f"PATH_DBC_CAN0={self.PATH_DBC_CAN0}\n")
+            f.write(f"PATH_DBC_CAN1={self.PATH_DBC_CAN1}\n")
+            f.write(f"IP_SCANNER={self.IP_SCANNER}\n")
+            f.write(f"CAN0_PORT={self.CAN0_PORT}\n")
+            f.write(f"CAN1_PORT={self.CAN1_PORT}\n")
+            f.write(f"UDP_PORT={self.UDP_PORT}\n")
 
 GUI()
