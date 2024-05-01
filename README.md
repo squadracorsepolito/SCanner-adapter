@@ -24,10 +24,21 @@ The 'PATH_DBC_CAN0' and 'PATH_DBC_CAN1' parameters are the paths to the DBC file
 
 ...
 
-### Build executable
+## Build executable
 ```bash
 pyinstaller --name SCannerAdapter  main.py --onefile --windowed
 ```
+
+
+## Publish new release
+Replace 1.0 with your version.
+```bash
+git add .         
+git commit -m "v1.0"  
+git tag -a v1.0 -m "Version 1.0"      
+git push origin master --tags   
+```   
+For a complete guide on how it works and how to publish a new release, check [this repo](https://github.com/Paolo-Beci/pyinstaller-all-os-gh-action).
 
 ## Tech stack
 - Python 3.12.2
