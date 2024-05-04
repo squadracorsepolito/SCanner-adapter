@@ -6,6 +6,7 @@ import json
 import time
 import subprocess
 import ctypes
+from cannellonipy.cannellonipy import run_cannellonipy, CannelloniHandle
 
 # Constants
 LOCALHOST_IP = "127.0.0.1"
@@ -26,11 +27,16 @@ def start_connection_controller(IP_SCANNER, CAN0_PORT, CAN1_PORT, UDP_PORT, PATH
 # Opens a stream from the specified scanner IP and ports
 def open_stream_cannelloni(IP_SCANNER, CAN0_PORT, CAN1_PORT):
     try:
+        # Create a cannellonipy handle
+        cannellonipy_handle0 = CannelloniHandle()
+        cannellonipy_handle1 = CannelloniHandle()
 
-        # TODO Integrate with the cannelloniPy library
+        # Run the library on the specified SCanner ports
+        cannelloni_thread0 = threading.Thread(target=run_cannellonipy, args=(cannellonipy_handle0, IP_SCANNER, CAN0_PORT), daemon=True)
+        cannelloni_thread0.start()
+        cannelloni_thread1 = threading.Thread(target=run_cannellonipy, args=(cannellonipy_handle1, IP_SCANNER, CAN1_PORT), daemon=True)
+        cannelloni_thread1.start()
 
-        return True
-        
     except Exception as e:
         print(f"Error opening stream from SCanner board: {e}")
     
@@ -72,10 +78,12 @@ def open_stream_plotjuggler(UDP_PORT):
 def read_data_cannelloni(cannelloni_socket):
     try:
         while True:
-            # Read data from the SCanner
-            data = cannelloni_socket.recv(BUFFER_SIZE)
-            if not data:
-                break
+            # Get the received frames form cannelloni
+            received_frames_can0 = cannellonipy_handle0.get_received_can_frames()
+            received_frames_can1 = cannellonipy_handle1.get_received_can_frames()
+
+            # Merge the two data streams
+            data = received_frames_can0 + received_frames_can1
 
             # Convert Cannelloni data to JSON
             json_data = cannelloni_to_json(data, PATH_DBC_CAN0)
@@ -93,14 +101,7 @@ def cannelloni_to_json(message_cannelloni, dbc_path):
         # Initialize empty JSON object
         json_data = {}
         
-        # Parse header of the frame
-        version = message_cannelloni[0]
-        op_code = message_cannelloni[1]
-        seq_no = message_cannelloni[2]
-        count = (message_cannelloni[3] << 8) | message_cannelloni[4]
-        
         # Iterate over CAN frames in the data section
-        offset = 5  # Start of data section
         for _ in range(count):
             # Parse CAN frame
             can_id = (message_cannelloni[offset] << 24) | (message_cannelloni[offset + 1] << 16) | \
