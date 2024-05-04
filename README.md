@@ -11,7 +11,7 @@ pip install -r requirements.txt
 ```
 
 ### CONFIG file
-To configure the parameters of the program you have to create a 'CONFIG.txt' file with the following parameters:
+To configure the parameters of the program you have to create a `CONFIG.txt` file with the following parameters:
 ```txt
 PATH_DBC_CAN0=Path
 PATH_DBC_CAN1=Path
@@ -20,7 +20,7 @@ CAN0_PORT=9600
 CAN1_PORT=9601
 UDP_PORT=5000
 ```
-The 'PATH_DBC_CAN0' and 'PATH_DBC_CAN1' parameters are the paths to the DBC files of the CAN0 and CAN1 buses respectively. The 'IP_SCANNER' parameter is the IP address of the scanner. The 'CAN0_PORT' and 'CAN1_PORT' parameters are the ports of the CAN0 and CAN1 buses respectively. The 'UDP_PORT' parameter is the port of the local UDP server.
+The `PATH_DBC_CAN0` and `PATH_DBC_CAN1` parameters are the paths to the DBC files of the CAN0 and CAN1 buses respectively. The `IP_SCANNER` parameter is the IP address of the scanner. The `CAN0_PORT` and `CAN1_PORT` parameters are the ports of the CAN0 and CAN1 buses respectively. The `UDP_PORT` parameter is the port of the local UDP server.
 
 ...
 

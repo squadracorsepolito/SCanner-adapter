@@ -1,0 +1,3 @@
+[submodule "cannellonipy"]
+	path = cannellonipy
+	url = https://github.com/squadracorsepolito/cannelloniPy
