@@ -12,7 +12,7 @@ class GUI:
         self.PATH_DBC_CAN0 = "Path"
         self.PATH_DBC_CAN1 = "Path"
         self.PATH_CONFIG_MODEL = "Path"
-        self.IP_SCANNER = "8.8.8.8"
+        self.IP_SCANNER = "0.0.0.0"
         self.CAN0_PORT = 4000
         self.CAN1_PORT = 5000
         self.UDP_PORT = 9870

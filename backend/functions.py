@@ -14,15 +14,17 @@ BUFFER_SIZE = 1024
 
 # Controller
 def start_connection_controller(IP_SCANNER, CAN0_PORT, CAN1_PORT, UDP_PORT, PATH_DBC_CAN0, PATH_DBC_CAN1, label_connected, connect_button):
-    udp_socket = open_stream_plotjuggler(int(UDP_PORT))
-    cannelloni_socket = open_stream_cannelloni(IP_SCANNER, CAN0_PORT, CAN1_PORT)
+    udp_socket = open_stream_udp(int(UDP_PORT))
+    cannelloni_sockets = open_stream_cannelloni(IP_SCANNER, CAN0_PORT, CAN1_PORT)
     time.sleep(1)
 
-    if udp_socket and cannelloni_socket:
+    if udp_socket and cannelloni_sockets[0].udp_pcb and cannelloni_sockets[1].udp_pcb: 
         print("Connection established")
-        read_data_cannelloni(cannelloni_socket)
+        read_data_cannelloni(udp_socket, cannelloni_sockets, PATH_DBC_CAN0, PATH_DBC_CAN1, UDP_PORT)
         label_connected.pack()
         connect_button.config(state="disabled")
+    else:
+        print("Connection failed")
 
 # Opens a stream from the specified scanner IP and ports
 def open_stream_cannelloni(IP_SCANNER, CAN0_PORT, CAN1_PORT):
@@ -34,69 +36,75 @@ def open_stream_cannelloni(IP_SCANNER, CAN0_PORT, CAN1_PORT):
         # Run the library on the specified SCanner ports
         cannelloni_thread0 = threading.Thread(target=run_cannellonipy, args=(cannellonipy_handle0, IP_SCANNER, CAN0_PORT), daemon=True)
         cannelloni_thread0.start()
+        time.sleep(1)
         cannelloni_thread1 = threading.Thread(target=run_cannellonipy, args=(cannellonipy_handle1, IP_SCANNER, CAN1_PORT), daemon=True)
         cannelloni_thread1.start()
+
+        return cannellonipy_handle0, cannellonipy_handle1
 
     except Exception as e:
         print(f"Error opening stream from SCanner board: {e}")
     
-# Opens a JSON streaming server for PlotJuggler on the specified port
-def open_stream_plotjuggler(UDP_PORT):
+# Opens a UDP streaming server for PlotJuggler on the specified port
+def open_stream_udp(UDP_PORT):
     try:
         # Create a UDP socket
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-        print(f"JSON UDP server for PlotJuggler is streaming on port {UDP_PORT}")
-
-        def handle_client():
-            try:
-                while True:
-                    # TODO change the data to be sent
-
-                    # Generate JSON data (replace with your actual data)
-                    example_json_data = {'Engine_Speed': 0, 'Inlet_Manifold_Pressure': 97.6, 'Inlet_Air_Temperature': 32, 'Throttle_Position': 17.3}
-                    print(f"Sending JSON data to port {UDP_PORT}: {example_json_data}")
-                    
-                    # Convert JSON data to string
-                    json_str = json.dumps(example_json_data)
-
-                    # Send JSON data to the client
-                    server_socket.sendto(json_str.encode(), (LOCALHOST_IP, UDP_PORT))   # Check with cmd:  nc -ul 9870
-
-                    time.sleep(1)
-            except Exception as e:
-                print(f"Error handling client connection: {e}")
-
-        # Start the thread to handle PlotJuggler connections
-        stream_plotjuggler_thread = threading.Thread(target=handle_client, daemon=True)
-        stream_plotjuggler_thread.start()
+        if server_socket:
+            print(f"UDP JSON server is active on port {UDP_PORT}")
+        return server_socket
 
     except Exception as e:
-        print(f"Error opening JSON UDP server: {e}")
+        print(f"Error opening UDP streaming server: {e}")
+
+# Stream JSON data to PlotJuggler via UDP
+def send_stream_to_plotjuggler(udp_socket, json_data, UDP_PORT):
+    try:
+        print(f"Sending JSON data: {json_data}")
+        # Serialize the JSON data to a string
+        json_string = json.dumps(json_data)
+        # Encode the JSON string to bytes
+        json_bytes = json_string.encode('utf-8')
+        # Send JSON data to the server
+        udp_socket.sendto(json_bytes, (LOCALHOST_IP, int(UDP_PORT)))    # Check with cmd:  nc -ul <UDP_PORT>
+
+    except Exception as e:
+        print(f"Error sending data via UDP: {e}")
 
 # Read data from the SCanner via cannelloni
-def read_data_cannelloni(cannelloni_socket):
+def read_data_cannelloni(udp_socket, cannelloni_sockets, PATH_DBC_CAN0, PATH_DBC_CAN1, UDP_PORT):
     try:
         while True:
             # Get the received frames form cannelloni
-            received_frames_can0 = cannellonipy_handle0.get_received_can_frames()
-            received_frames_can1 = cannellonipy_handle1.get_received_can_frames()
-
-            # Merge the two data streams
-            data = received_frames_can0 + received_frames_can1
+            received_frames_can0 = cannelloni_sockets[0].get_received_can_frames()
+            received_frames_can1 = cannelloni_sockets[1].get_received_can_frames()
 
             # Convert Cannelloni data to JSON
-            json_data = cannelloni_to_json(data, PATH_DBC_CAN0)
-            print(json_data)
+            json_data0 = cannelloni_to_json(received_frames_can0, PATH_DBC_CAN0)
+            json_data1 = cannelloni_to_json(received_frames_can1, PATH_DBC_CAN1)
+
+            # Merge the two JSON objects streams
+            if json_data0 and json_data1:
+                json_data = {**json_data0, **json_data1}
+                print(json_data)
+                # Send the JSON data to PlotJuggler via UDP
+                send_stream_to_plotjuggler(udp_socket, json_data, UDP_PORT)
+            else:
+                print("No data received")
+                return
 
     except Exception as e:
         print(f"Error reading data from SCanner: {e}")
 
 # Cannelloni CAN stream to JSON converter
-def cannelloni_to_json(message_cannelloni, dbc_path):
+def cannelloni_to_json(frame_cannelloni, dbc_path):
     try:
         # Load DBC file
-        dbc = cantools.db.load_file(dbc_path)
+        if dbc_path == "Path":
+            print("No DBC file provided")
+            return None
+        else:
+            dbc = cantools.db.load_file(dbc_path)
         
         # Initialize empty JSON object
         json_data = {}
@@ -104,14 +112,14 @@ def cannelloni_to_json(message_cannelloni, dbc_path):
         # Iterate over CAN frames in the data section
         for _ in range(count):
             # Parse CAN frame
-            can_id = (message_cannelloni[offset] << 24) | (message_cannelloni[offset + 1] << 16) | \
-                    (message_cannelloni[offset + 2] << 8) | message_cannelloni[offset + 3]
-            length = message_cannelloni[offset + 4]
-            flags = message_cannelloni[offset + 5] if length & 0x80 else None
+            can_id = (frame_cannelloni[offset] << 24) | (frame_cannelloni[offset + 1] << 16) | \
+                    (frame_cannelloni[offset + 2] << 8) | frame_cannelloni[offset + 3]
+            length = frame_cannelloni[offset + 4]
+            flags = frame_cannelloni[offset + 5] if length & 0x80 else None
             data_start = offset + 6 if length & 0x80 else offset + 5
             
             # Extract data bytes
-            data = message_cannelloni[data_start:data_start + length]
+            data = frame_cannelloni[data_start:data_start + length]
             
             # Decode CAN frame using DBC file
             frame_decoded = dbc.decode_message(can_id, data)
