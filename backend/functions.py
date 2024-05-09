@@ -12,22 +12,37 @@ from cannellonipy.cannellonipy import run_cannellonipy, CannelloniHandle
 LOCALHOST_IP = "127.0.0.1"
 BUFFER_SIZE = 1024
 
+# Global variables
+udp_socket = None
+cannelloni_thread0 = None
+cannelloni_thread1 = None
+cannellonipy_handle0 = None
+cannellonipy_handle1 = None
+data_thread = None
+is_running = None
+
 # Controller
-def start_connection_controller(IP_SCANNER, CAN0_PORT, CAN1_PORT, UDP_PORT, PATH_DBC_CAN0, PATH_DBC_CAN1, label_connected, connect_button):
+def start_connection_controller(IP_SCANNER, CAN0_PORT, CAN1_PORT, UDP_PORT, PATH_DBC_CAN0, PATH_DBC_CAN1, label_connected, connect_button, disconnect_button):
+    global udp_socket, cannelloni_sockets, is_running, data_thread
     udp_socket = open_stream_udp(int(UDP_PORT))
     cannelloni_sockets = open_stream_cannelloni(IP_SCANNER, CAN0_PORT, CAN1_PORT)
     time.sleep(1)
 
     if udp_socket and cannelloni_sockets[0].udp_pcb and cannelloni_sockets[1].udp_pcb: 
         print("Connection established")
-        read_data_cannelloni(udp_socket, cannelloni_sockets, PATH_DBC_CAN0, PATH_DBC_CAN1, UDP_PORT)
-        label_connected.pack()
+        is_running = True
+        label_connected.grid(row=19, column=1, columnspan=10)
         connect_button.config(state="disabled")
+        disconnect_button.config(state="active")
+        data_thread = threading.Thread(target=read_data_cannelloni, args=(udp_socket, cannelloni_sockets, PATH_DBC_CAN0, PATH_DBC_CAN1, UDP_PORT), daemon=True)
+        data_thread.start()
     else:
-        print("Connection failed")
+        disconnect()
+        print("Failed to establish connection, disconnecting...")
 
 # Opens a stream from the specified scanner IP and ports
 def open_stream_cannelloni(IP_SCANNER, CAN0_PORT, CAN1_PORT):
+    global cannelloni_thread0, cannelloni_thread1, cannellonipy_handle0, cannellonipy_handle1
     try:
         # Create a cannellonipy handle
         cannellonipy_handle0 = CannelloniHandle()
@@ -60,38 +75,34 @@ def open_stream_udp(UDP_PORT):
 # Stream JSON data to PlotJuggler via UDP
 def send_stream_to_plotjuggler(udp_socket, json_data, UDP_PORT):
     try:
-        print(f"Sending JSON data: {json_data}")
         # Serialize the JSON data to a string
-        json_string = json.dumps(json_data)
-        # Encode the JSON string to bytes
-        json_bytes = json_string.encode('utf-8')
+        json_bytes = json.dumps(json_data).encode('utf-8')
         # Send JSON data to the server
         udp_socket.sendto(json_bytes, (LOCALHOST_IP, int(UDP_PORT)))    # Check with cmd:  nc -ul <UDP_PORT>
+        print(f"Sending JSON data: {json_data}") #DEBUG
 
     except Exception as e:
         print(f"Error sending data via UDP: {e}")
 
 # Read data from the SCanner via cannelloni
 def read_data_cannelloni(udp_socket, cannelloni_sockets, PATH_DBC_CAN0, PATH_DBC_CAN1, UDP_PORT):
+    global is_running
     try:
-        while True:
+        while is_running:
             # Get the received frames form cannelloni
             received_frames_can0 = cannelloni_sockets[0].get_received_can_frames()
             received_frames_can1 = cannelloni_sockets[1].get_received_can_frames()
 
-            # Convert Cannelloni data to JSON
-            json_data0 = cannelloni_to_json(received_frames_can0, PATH_DBC_CAN0)
-            json_data1 = cannelloni_to_json(received_frames_can1, PATH_DBC_CAN1)
-
             # Merge the two JSON objects streams
-            if json_data0 and json_data1:
+            if received_frames_can0 and received_frames_can1:
+                # Convert Cannelloni data to JSON
+                json_data0 = cannelloni_to_json(received_frames_can0, PATH_DBC_CAN0)
+                json_data1 = cannelloni_to_json(received_frames_can1, PATH_DBC_CAN1)
+
                 json_data = {**json_data0, **json_data1}
                 print(json_data)
                 # Send the JSON data to PlotJuggler via UDP
                 send_stream_to_plotjuggler(udp_socket, json_data, UDP_PORT)
-            else:
-                print("No data received")
-                return
 
     except Exception as e:
         print(f"Error reading data from SCanner: {e}")
@@ -134,9 +145,30 @@ def cannelloni_to_json(frame_cannelloni, dbc_path):
     except Exception as e:
         print(f"Error converting Cannelloni data to JSON: {e}")
         
+# Disconnect from the serial and UDP servers
+def disconnect():
+    global udp_socket, cannelloni_thread0, cannelloni_thread1, data_thread, is_running, cannellonipy_handle0, cannellonipy_handle1
+    try:
+        print("Disconnecting...")
+        if udp_socket:
+            # Close the app UDP socket
+            udp_socket.close()
+        if cannelloni_thread0 and cannelloni_thread1:
+            # Close the cannellonipy UDP sockets
+            cannellonipy_handle0.udp_pcb.close()
+            cannellonipy_handle1.udp_pcb.close()
+            # Join the threads
+            cannelloni_thread0.join()   
+            cannelloni_thread1.join()
+        if data_thread:
+            # Join the read data thread
+            is_running = False
+            data_thread.join()
+    except Exception as e:
+        print(f"Error disconnecting: {e}")
 
 
-# CANNELLONI DATA FORMAT
+# ------------- CANNELLONI DATA FORMAT -------------
 # ## Data Frames
 # Each data frame can contain several CAN frames.
 # The header of a data frame contains the following
