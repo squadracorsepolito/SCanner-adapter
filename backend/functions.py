@@ -6,6 +6,7 @@ import json
 import time
 import subprocess
 import ctypes
+import can
 from cannellonipy.cannellonipy import run_cannellonipy, CannelloniHandle
 
 # Constants
@@ -22,23 +23,39 @@ data_thread = None
 is_running = None
 
 # Controller
-def start_connection_controller(IP_SCANNER, CAN0_PORT, CAN1_PORT, UDP_PORT, PATH_DBC_CAN0, PATH_DBC_CAN1, label_connected, connect_button, disconnect_button):
+def start_connection_controller(IP_SCANNER, CAN0_PORT, CAN1_PORT, UDP_PORT, PATH_DBC_CAN0, PATH_DBC_CAN1, label_connected, connect_button, disconnect_button, MODE):
     global udp_socket, cannelloni_sockets, is_running, data_thread
+
     udp_socket = open_stream_udp(int(UDP_PORT))
-    cannelloni_sockets = open_stream_cannelloni(IP_SCANNER, CAN0_PORT, CAN1_PORT)
     time.sleep(1)
 
-    if udp_socket and cannelloni_sockets[0].udp_pcb and cannelloni_sockets[1].udp_pcb: 
-        print("Connection established")
-        is_running = True
-        label_connected.grid(row=19, column=1, columnspan=10)
-        connect_button.config(state="disabled")
-        disconnect_button.config(state="active")
-        data_thread = threading.Thread(target=read_data_cannelloni, args=(udp_socket, cannelloni_sockets, PATH_DBC_CAN0, PATH_DBC_CAN1, UDP_PORT), daemon=True)
-        data_thread.start()
-    else:
-        disconnect()
-        print("Failed to establish connection, disconnecting...")
+    if MODE == "Cannelloni":
+        cannelloni_sockets = open_stream_cannelloni(IP_SCANNER, CAN0_PORT, CAN1_PORT)
+        time.sleep(1)
+        if udp_socket and cannelloni_sockets[0].udp_pcb and cannelloni_sockets[1].udp_pcb:
+            is_running = True
+            label_connected.grid(row=19, column=1, columnspan=10)
+            connect_button.config(state="disabled")
+            disconnect_button.config(state="active")
+            data_thread = threading.Thread(target=read_data_cannelloni, args=(udp_socket, cannelloni_sockets, PATH_DBC_CAN0, PATH_DBC_CAN1, UDP_PORT), daemon=True)
+            data_thread.start()
+        else:
+            disconnect()
+            print("Failed to establish connection, disconnecting...")
+
+    elif MODE == "Physical CAN":
+        can_bus0 = open_stream_can("can0")   # TODO: verificare nome socket
+        can_bus1 = open_stream_can("can1")
+        if udp_socket and can_bus0 and x:
+            is_running = True
+            label_connected.grid(row=19, column=1, columnspan=10)
+            connect_button.config(state="disabled")
+            disconnect_button.config(state="active")
+            data_thread = threading.Thread(target=read_data_can, args=(udp_socket, can_bus0, can_bus1, PATH_DBC_CAN0, PATH_DBC_CAN1, UDP_PORT), daemon=True)
+            data_thread.start()
+        else:
+            disconnect()
+            print("Failed to establish connection, disconnecting...")
 
 # Opens a stream from the specified scanner IP and ports
 def open_stream_cannelloni(IP_SCANNER, CAN0_PORT, CAN1_PORT):
@@ -71,6 +88,16 @@ def open_stream_udp(UDP_PORT):
 
     except Exception as e:
         print(f"Error opening UDP streaming server: {e}")
+
+# Opens a CAN bus stream
+def open_stream_can(interface):
+    try:
+        can_bus = can.interface.Bus(channel=interface, interface='socketcan', bitrate=1000000)
+        print(f"CAN interface {interface} is active")
+        return can_bus
+
+    except Exception as e:
+        print(f"Error opening CAN interface {interface}: {e}")
 
 # Stream JSON data to PlotJuggler via UDP
 def send_stream_to_plotjuggler(udp_socket, json_data, UDP_PORT):
@@ -106,6 +133,33 @@ def read_data_cannelloni(udp_socket, cannelloni_sockets, PATH_DBC_CAN0, PATH_DBC
 
     except Exception as e:
         print(f"Error reading data from SCanner: {e}")
+
+
+# Read data from the physical CAN bus
+def read_data_can(udp_socket, can_bus0, can_bus1, PATH_DBC_CAN0, PATH_DBC_CAN1, UDP_PORT):
+    global is_running
+    try:
+        dbc0 = cantools.db.load_file(PATH_DBC_CAN0)
+        dbc1 = cantools.db.load_file(PATH_DBC_CAN1)
+
+        while is_running:
+            msg0 = can_bus0.recv(1.0)
+            msg1 = can_bus1.recv(1.0)
+
+            json_data = {}
+            if msg0:
+                frame_decoded0 = dbc0.decode_message(msg0.arbitration_id, msg0.data)
+                json_data[str(msg0.arbitration_id)] = frame_decoded0
+
+            if msg1:
+                frame_decoded1 = dbc1.decode_message(msg1.arbitration_id, msg1.data)
+                json_data[str(msg1.arbitration_id)] = frame_decoded1
+
+            if json_data:
+                send_stream_to_plotjuggler(udp_socket, json_data, UDP_PORT)
+
+    except Exception as e:
+        print(f"Error reading data from CAN bus: {e}")
 
 # Cannelloni CAN stream to JSON converter
 def cannelloni_to_json(frame_cannelloni, dbc_path):
