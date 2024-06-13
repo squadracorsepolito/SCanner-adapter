@@ -45,8 +45,8 @@ def start_connection_controller(IP_SCANNER, CAN0_PORT, CAN1_PORT, UDP_PORT, PATH
 
     elif MODE == "Physical CAN":
         can_bus0 = open_stream_can("can0")   # TODO: verificare nome socket
-        can_bus1 = open_stream_can("can1")
-        if udp_socket and can_bus0 and x:
+        can_bus1 = open_stream_can("can1")   # TODO: verificare nome socket
+        if udp_socket and can_bus0 and can_bus1:
             is_running = True
             label_connected.grid(row=19, column=1, columnspan=10)
             connect_button.config(state="disabled")
@@ -143,8 +143,8 @@ def read_data_can(udp_socket, can_bus0, can_bus1, PATH_DBC_CAN0, PATH_DBC_CAN1, 
         dbc1 = cantools.db.load_file(PATH_DBC_CAN1)
 
         while is_running:
-            msg0 = can_bus0.recv(1.0)
-            msg1 = can_bus1.recv(1.0)
+            msg0 = can_bus0.recv(1.0)   # Timeout 1 second
+            msg1 = can_bus1.recv(1.0)   # Timeout 1 second
 
             json_data = {}
             if msg0:
