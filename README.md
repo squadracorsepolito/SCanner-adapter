@@ -4,11 +4,7 @@ Cannelloni UDP to JSON stream translator
 ## General schema
 ![General schema](img/general-schema.png)
 
-## How to use
-### Install dependencies
-```bash
-pip install -r requirements.txt
-```
+## How to use the app: Cannelloni mode
 
 ### CONFIG file
 To configure the parameters of the program you have to create a `CONFIG.txt` file with the following parameters:
@@ -22,15 +18,30 @@ UDP_PORT=5000
 ```
 The `PATH_DBC_CAN0` and `PATH_DBC_CAN1` parameters are the paths to the DBC files of the CAN0 and CAN1 buses respectively. The `IP_SCANNER` parameter is the IP address of the scanner. The `CAN0_PORT` and `CAN1_PORT` parameters are the ports of the CAN0 and CAN1 buses respectively. The `UDP_PORT` parameter is the port of the local UDP server.
 
-...
+## How to use the app: Physical CAN mode
+This mode supports the input from physical `can0` and `can1` buses. You can select the bitrate and the DBC file for each bus. The output is a JSON stream that is sent to a UDP server.
+
+## How to initialize locally
+### Install dependencies and run
+```bash
+pip install -r requirements.txt
+python main.py
+```
 
 ## Build executable
 ```bash
 pyinstaller --name SCannerAdapter  main.py --onefile --windowed
 ```
 
-
 ## Publish new release
+### Script bash
+Simply run the script `deploy.sh` with the version as argument.
+```bash
+chmod +x deploy.sh
+./deploy.sh 1.0
+```
+
+### Manual
 Replace 1.0 with your version.
 ```bash
 git add .         
@@ -43,6 +54,8 @@ For a complete guide on how it works and how to publish a new release, check [th
 ## Tech stack
 - Python 3.12.2
 - [Tkinter](https://docs.python.org/3/library/tkinter.html)
+- [Pyinstaller](https://www.pyinstaller.org/)
+- [CannelloniPy](https://github.com/squadracorsepolito/cannelloniPy)
 - [Cannelloni](https://github.com/mguentner/cannelloni)
 - [Cantools](https://pypi.org/project/cantools/)
 - [PlotJuggler](https://github.com/facontidavide/PlotJuggler)
