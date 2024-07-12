@@ -1,6 +1,6 @@
 altgraph==0.17.4
 argparse-addons==0.12.0
-bitstruct==8.19.0
+bitstruct==8.17.0
 cantools==39.4.5
 crccheck==1.3.0
 diskcache==5.6.3

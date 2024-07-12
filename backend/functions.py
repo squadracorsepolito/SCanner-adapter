@@ -7,7 +7,7 @@ import time
 import subprocess
 import ctypes
 import can
-from cannellonipy.cannellonipy import run_cannellonipy, CannelloniHandle
+from cannellonipy.cannellonipy import run_cannellonipy, CannelloniHandle, CanfdFrame
 
 # Constants
 LOCALHOST_IP = "127.0.0.1"
@@ -34,7 +34,7 @@ def start_connection_controller(IP_SCANNER, CAN0_PORT, CAN1_PORT, UDP_PORT, PATH
         time.sleep(1)
         if udp_socket and cannelloni_sockets[0].udp_pcb and cannelloni_sockets[1].udp_pcb:
             is_running = True
-            label_connected.grid(row=19, column=1, columnspan=10)
+            label_connected.grid(row=21, column=1, columnspan=10)
             connect_button.config(state="disabled")
             disconnect_button.config(state="active")
             data_thread = threading.Thread(target=read_data_cannelloni, args=(udp_socket, cannelloni_sockets, PATH_DBC_CAN0, PATH_DBC_CAN1, UDP_PORT), daemon=True)
@@ -48,7 +48,7 @@ def start_connection_controller(IP_SCANNER, CAN0_PORT, CAN1_PORT, UDP_PORT, PATH
         can_bus1 = open_stream_can("can1")   # TODO: verificare nome socket
         if udp_socket and can_bus0 and can_bus1:
             is_running = True
-            label_connected.grid(row=19, column=1, columnspan=10)
+            label_connected.grid(row=21, column=1, columnspan=10)
             connect_button.config(state="disabled")
             disconnect_button.config(state="active")
             data_thread = threading.Thread(target=read_data_can, args=(udp_socket, can_bus0, can_bus1, PATH_DBC_CAN0, PATH_DBC_CAN1, UDP_PORT), daemon=True)
@@ -71,11 +71,29 @@ def open_stream_cannelloni(IP_SCANNER, CAN0_PORT, CAN1_PORT):
         time.sleep(1)
         cannelloni_thread1 = threading.Thread(target=run_cannellonipy, args=(cannellonipy_handle1, IP_SCANNER, CAN1_PORT), daemon=True)
         cannelloni_thread1.start()
+        ## TEST ------------------------
+        time.sleep(1)
+        cannelloni_thread2 = threading.Thread(target=send_mock_data_cannellonipy, daemon=True)
+        cannelloni_thread2.start()
+        ## -----------------------------
 
         return cannellonipy_handle0, cannellonipy_handle1
 
     except Exception as e:
         print(f"Error opening stream from SCanner board: {e}")
+
+def send_mock_data_cannellonipy():
+    ## TEST -----------------------
+    frame = CanfdFrame()
+    frame.can_id = 0x1234  # Set your desired CAN ID
+    frame.len = 8  # Set the data length (assuming 8 bytes)
+    frame.data = bytearray(b"Hello World!")  # Set your CAN data
+
+    while(True):
+        cannellonipy_handle0.tx_queue.put(frame) 
+        time.sleep(1)
+        print("Send CAN frame: ", frame.data)
+    ## -----------------------------
     
 # Opens a UDP streaming server for PlotJuggler on the specified port
 def open_stream_udp(UDP_PORT):
@@ -164,6 +182,7 @@ def read_data_can(udp_socket, can_bus0, can_bus1, PATH_DBC_CAN0, PATH_DBC_CAN1, 
 # Cannelloni CAN stream to JSON converter
 def cannelloni_to_json(frame_cannelloni, dbc_path):
     try:
+        print("Frame received: ", frame_cannelloni) #DEBUG
         # Load DBC file
         if dbc_path == "Path":
             print("No DBC file provided")

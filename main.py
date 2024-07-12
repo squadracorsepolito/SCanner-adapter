@@ -45,7 +45,7 @@ class GUI:
         # Functioning mode
         self.label_mode = tk.Label(self.frame, text="Select functioning mode to use:")
         self.label_mode.grid(row=1, column=1, columnspan=10)
-        options = ["Cannelloni", "Physical CAN"]
+        options = ["Cannelloni", "Physical CAN (Linux-only)"]
         self.selected_option = StringVar()
         self.selected_option.set(options[0])
         self.dropdown = OptionMenu(self.frame, self.selected_option, *options)
