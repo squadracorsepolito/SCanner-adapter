@@ -8,15 +8,27 @@ Cannelloni UDP to JSON stream translator
 
 ### CONFIG file
 To configure the parameters of the program you have to create a `CONFIG.txt` file with the following parameters:
+
+Canneelloni mode:
 ```txt
+MODE=Cannelloni
 PATH_DBC_CAN0=Path
 PATH_DBC_CAN1=Path
+UDP_PORT=5000
 IP_SCANNER=8.8.8.8
 CAN0_PORT=9600
 CAN1_PORT=9601
-UDP_PORT=5000
 ```
-The `PATH_DBC_CAN0` and `PATH_DBC_CAN1` parameters are the paths to the DBC files of the CAN0 and CAN1 buses respectively. The `IP_SCANNER` parameter is the IP address of the scanner. The `CAN0_PORT` and `CAN1_PORT` parameters are the ports of the CAN0 and CAN1 buses respectively. The `UDP_PORT` parameter is the port of the local UDP server.
+Physical CAN mode:
+```txt
+MODE=Physical
+PATH_DBC_CAN0=Path
+PATH_DBC_CAN1=Path
+UDP_PORT=5000
+CAN_SOCKET0=can0
+CAN_SOCKET1=can1
+```
+The `PATH_DBC_CAN0` and `PATH_DBC_CAN1` parameters are the paths to the DBC files of the CAN0 and CAN1 buses respectively. The `IP_SCANNER` parameter is the IP address of the scanner. The `CAN0_PORT` and `CAN1_PORT` parameters are the ports of the CAN0 and CAN1 buses respectively. The `UDP_PORT` parameter is the port of the local UDP server. The `CAN_SOCKET0` and `CAN_SOCKET1` parameters are the names of the physical CAN0 and CAN1 sockets respectively (only supported in Linux).
 
 ## How to use the app: Physical CAN mode
 This mode supports the input from physical `can0` and `can1` buses. You can select the bitrate and the DBC file for each bus. The output is a JSON stream that is sent to a UDP server.
