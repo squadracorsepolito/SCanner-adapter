@@ -30,32 +30,41 @@ def start_connection_controller(IP_SCANNER, CAN0_PORT, CAN1_PORT, UDP_PORT, PATH
     time.sleep(1)
 
     if MODE == "Cannelloni":
+        print("Starting Cannelloni connection...")
         cannelloni_sockets = open_stream_cannelloni(IP_SCANNER, CAN0_PORT, CAN1_PORT)
         time.sleep(1)
         if udp_socket and cannelloni_sockets[0].udp_pcb and cannelloni_sockets[1].udp_pcb:
             is_running = True
-            label_connected.grid(row=21, column=1, columnspan=10)
-            connect_button.config(state="disabled")
-            disconnect_button.config(state="active")
+            if label_connected:
+                label_connected.grid(row=21, column=1, columnspan=10)
+            if connect_button:
+                connect_button.config(state="disabled")
+            if disconnect_button:
+                disconnect_button.config(state="active")
             data_thread = threading.Thread(target=read_data_cannelloni, args=(udp_socket, cannelloni_sockets, PATH_DBC_CAN0, PATH_DBC_CAN1, UDP_PORT), daemon=True)
             data_thread.start()
         else:
             disconnect()
             print("Failed to establish connection, disconnecting...")
 
-    elif MODE == "Physical CAN":
+    elif MODE == "PhysicalCAN":
         can_bus0 = open_stream_can(CAN_SOCKET0)  
         can_bus1 = open_stream_can(CAN_SOCKET1)  
         if udp_socket and can_bus0 and can_bus1:
             is_running = True
-            label_connected.grid(row=21, column=1, columnspan=10)
-            connect_button.config(state="disabled")
-            disconnect_button.config(state="active")
+            if label_connected:
+                label_connected.grid(row=21, column=1, columnspan=10)
+            if connect_button:
+                connect_button.config(state="disabled")
+            if disconnect_button:
+                disconnect_button.config(state="active")
             data_thread = threading.Thread(target=read_data_can, args=(udp_socket, can_bus0, can_bus1, PATH_DBC_CAN0, PATH_DBC_CAN1, UDP_PORT), daemon=True)
             data_thread.start()
         else:
             disconnect()
             print("Failed to establish connection, disconnecting...")
+    else:
+        print("Invalid mode: ", MODE)
 
 # Opens a stream from the specified scanner IP and ports
 def open_stream_cannelloni(IP_SCANNER, CAN0_PORT, CAN1_PORT):

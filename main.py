@@ -3,26 +3,43 @@ from tkinter import filedialog, StringVar, OptionMenu
 from backend.functions import start_connection_controller, disconnect
 import threading
 import time
+import argparse
 
 class GUI:
-    def __init__(self):
-        # Create a new instance of Tkinter application
-        self.app = tk.Tk()
-
+    def __init__(self, config_path=None, mode=None, direct_connect=False):
         # Config parameters with default values
+        self.MODE = "Select"
+        self.PATH_CONFIG_MODEL = "Path"
         self.PATH_DBC_CAN0 = "Path"
         self.PATH_DBC_CAN1 = "Path"
-        self.PATH_CONFIG_MODEL = "Path"
+        self.UDP_PORT = 9870
         self.IP_SCANNER = "0.0.0.0"
         self.CAN0_PORT = 4000
         self.CAN1_PORT = 5000
-        self.UDP_PORT = 9870
-        self.MODE = "Cannelloni"
         self.CAN_SOCKET0 = "vcan0"
         self.CAN_SOCKET1 = "vcan1"
 
         global controller_thread
         controller_thread = None
+        self.connect_button = None
+        self.label_connected = None
+        self.label_connected = None
+        self.disconnect_button = None
+
+        # Load configuration if a path was provided
+        if config_path:
+            self.PATH_CONFIG_MODEL = config_path
+            self.startup()
+
+        if mode:
+            self.MODE = mode
+
+        if direct_connect:
+            self.connect_thread(direct=True)
+            return
+
+        # Create a new instance of Tkinter application
+        self.app = tk.Tk()
 
     # ---------- WINDOW SETTINGS ---------------------------------------
         self.app.title("SCanner Adapter")
@@ -45,11 +62,16 @@ class GUI:
         self.label.grid(row=0, column=1, columnspan=10, pady=10)
 
         # Functioning mode
-        self.label_mode = tk.Label(self.frame, text="Select functioning mode to use (Physical CAN is Linux only):")
+        self.label_mode = tk.Label(self.frame, text="Select functioning mode to use (PhysicalCAN is Linux only):")
         self.label_mode.grid(row=1, column=1, columnspan=10)
-        options = ["Select", "Cannelloni", "Physical CAN"]  # Update the naming in the backend if modified
+        options = ["Select", "Cannelloni", "PhysicalCAN"]  # Update the naming in the backend if modified
         self.selected_option = StringVar()
-        self.selected_option.set(options[0])
+        # Set the provided mode if any
+        if mode:
+            self.selected_option.set(mode)
+            self.update_ui_based_on_mode(mode)
+        else:
+            self.selected_option.set(options[0])
         self.dropdown = OptionMenu(self.frame, self.selected_option, *options, command=self.update_ui_based_on_mode)
         self.dropdown.grid(row=2, column=1, columnspan=10, pady=10)
 
@@ -121,7 +143,7 @@ class GUI:
         for widget in self.frame.grid_slaves(row=11):
             widget.grid_forget()
 
-        if selected_mode == "Physical CAN":
+        if selected_mode == "PhysicalCAN":
             # CAN Socket 1
             self.label_can_socket0 = tk.Label(self.frame, text="CAN0 socket:")
             self.label_can_socket0.grid(row=6, column=1, columnspan=10)
@@ -180,40 +202,45 @@ class GUI:
         self.textbox_path_dbc_can1.delete("1.0", tk.END)
         self.textbox_path_dbc_can1.insert("1.0", self.PATH_DBC_CAN1)
 
-    def connect_thread(self):
+    def connect_thread(self, direct=False):
         global controller_thread
         # Start a new thread for the connect function
-        controller_thread = threading.Thread(target=self.connect, daemon=True)
+        controller_thread = threading.Thread(target=self.connect, args=(direct,), daemon=True)
         controller_thread.start()
 
-    def connect(self):
-        # Get the content of each textbox widget
-        if hasattr(self, 'textbox_ip_scanner'):
-            self.IP_SCANNER = self.textbox_ip_scanner.get("1.0", "end-1c")
-        if hasattr(self, 'textbox_can0_port'):
-            self.CAN0_PORT = self.textbox_can0_port.get("1.0", "end-1c")
-        if hasattr(self, 'textbox_can1_port'):
-            self.CAN1_PORT = self.textbox_can1_port.get("1.0", "end-1c")
-        if hasattr(self, 'textbox_can_socket0'):
-            self.CAN_SOCKET0 = self.textbox_can_socket0.get("1.0", "end-1c")
-        if hasattr(self, 'textbox_can_socket1'):
-            self.CAN_SOCKET1 = self.textbox_can_socket1.get("1.0", "end-1c")
-        self.UDP_PORT = self.textbox_udp_port.get("1.0", "end-1c")
-        self.PATH_DBC_CAN0 = self.textbox_path_dbc_can0.get("1.0", "end-1c")
-        self.PATH_DBC_CAN1 = self.textbox_path_dbc_can1.get("1.0", "end-1c")
-        # Get the selected mode
-        self.MODE = self.selected_option.get()
-        # Save the paths to the CONFIG file for future reuse
-        self.save_to_config_file() 
+    def connect(self, direct=False):
+        if not direct:
+            # Get the content of each textbox widget
+            if hasattr(self, 'textbox_ip_scanner'):
+                self.IP_SCANNER = self.textbox_ip_scanner.get("1.0", "end-1c")
+            if hasattr(self, 'textbox_can0_port'):
+                self.CAN0_PORT = self.textbox_can0_port.get("1.0", "end-1c")
+            if hasattr(self, 'textbox_can1_port'):
+                self.CAN1_PORT = self.textbox_can1_port.get("1.0", "end-1c")
+            if hasattr(self, 'textbox_can_socket0'):
+                self.CAN_SOCKET0 = self.textbox_can_socket0.get("1.0", "end-1c")
+            if hasattr(self, 'textbox_can_socket1'):
+                self.CAN_SOCKET1 = self.textbox_can_socket1.get("1.0", "end-1c")
+            self.UDP_PORT = self.textbox_udp_port.get("1.0", "end-1c")
+            self.PATH_DBC_CAN0 = self.textbox_path_dbc_can0.get("1.0", "end-1c")
+            self.PATH_DBC_CAN1 = self.textbox_path_dbc_can1.get("1.0", "end-1c")
+            # Get the selected mode
+            self.MODE = self.selected_option.get()
+            # Save the paths to the CONFIG file for future reuse
+            self.save_to_config_file() 
 
-        print("Mode: ", self.MODE)
-        if self.MODE != "Select":
-            start_connection_controller(self.IP_SCANNER, self.CAN0_PORT, self.CAN1_PORT, self.UDP_PORT, 
-                                        self.PATH_DBC_CAN0, self.PATH_DBC_CAN1, self.label_connected, 
+        try:
+            print("Mode: ", self.MODE)
+            if self.MODE != "Select":
+                start_connection_controller(self.IP_SCANNER, self.CAN0_PORT, self.CAN1_PORT, self.UDP_PORT, 
+                                            self.PATH_DBC_CAN0, self.PATH_DBC_CAN1, self.label_connected, 
                                         self.connect_button, self.disconnect_button, self.MODE, 
                                         self.CAN_SOCKET0, self.CAN_SOCKET1)
-        else:
-            return
+            else:
+                print("Please select a valid mode")
+                return
+        except Exception as e:
+            print(f"Connection failed: {e}")
 
     def disconnect(self):
         global controller_thread
@@ -235,9 +262,7 @@ class GUI:
         with open(self.PATH_CONFIG_MODEL, 'r') as f:
             for line in f:
                 key, value = line.strip().split("=")
-                if key == "MODE":
-                    self.MODE = value
-                elif key == "PATH_DBC_CAN0":
+                if key == "PATH_DBC_CAN0":
                     self.PATH_DBC_CAN0 = value
                 elif key == "PATH_DBC_CAN1":
                     self.PATH_DBC_CAN1 = value
@@ -273,17 +298,19 @@ class GUI:
         if hasattr(self, 'textbox_can_socket1'):
             self.textbox_can_socket1.delete("1.0", tk.END)
             self.textbox_can_socket1.insert("1.0", self.CAN_SOCKET1)
-        self.textbox_udp_port.delete("1.0", tk.END)
-        self.textbox_udp_port.insert("1.0", self.UDP_PORT)
-        self.textbox_path_dbc_can0.delete("1.0", tk.END)
-        self.textbox_path_dbc_can0.insert("1.0", self.PATH_DBC_CAN0)
-        self.textbox_path_dbc_can1.delete("1.0", tk.END)
-        self.textbox_path_dbc_can1.insert("1.0", self.PATH_DBC_CAN1)
+        if hasattr(self, 'textbox_udp_port'):
+            self.textbox_udp_port.delete("1.0", tk.END)
+            self.textbox_udp_port.insert("1.0", self.UDP_PORT)
+        if hasattr(self, 'textbox_path_dbc_can0'):
+            self.textbox_path_dbc_can0.delete("1.0", tk.END)
+            self.textbox_path_dbc_can0.insert("1.0", self.PATH_DBC_CAN0)
+        if hasattr(self, 'textbox_path_dbc_can1'):
+            self.textbox_path_dbc_can1.delete("1.0", tk.END)
+            self.textbox_path_dbc_can1.insert("1.0", self.PATH_DBC_CAN1)
     
     def save_to_config_file(self):
         if self.PATH_CONFIG_MODEL != "Path":
             with open(self.PATH_CONFIG_MODEL, 'w') as f:
-                f.write(f"MODE={self.MODE}\n")
                 f.write(f"PATH_DBC_CAN0={self.PATH_DBC_CAN0}\n")
                 f.write(f"PATH_DBC_CAN1={self.PATH_DBC_CAN1}\n")
                 f.write(f"UDP_PORT={self.UDP_PORT}\n")
@@ -293,4 +320,11 @@ class GUI:
                 f.write(f"CAN_SOCKET0={self.CAN_SOCKET0}\n")
                 f.write(f"CAN_SOCKET1={self.CAN_SOCKET1}")
 
-GUI()
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Start the Serial CSV to UDP JSON Translator GUI.")
+    parser.add_argument('--config', type=str, help='Path to the configuration file')
+    parser.add_argument('--mode', type=str, default="Cannelloni", help='Functioning mode to use: Cannelloni or PhysicalCAN')
+    parser.add_argument('--nogui', action='store_true', default=False, help='Connect directly without showing the GUI')
+    args = parser.parse_args()
+
+    gui = GUI(config_path=args.config, mode=args.mode, direct_connect=args.nogui)
